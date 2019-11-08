@@ -4,16 +4,16 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	_ "github.com/guregu/dynamo"
 	"github.com/jxpress/gou/infrastructure"
-	moduledynamodb "github.com/jxpress/gou/module/dynamodb"
+	moddynamodb "github.com/jxpress/gou/module/dynamodb"
 )
 
 func GetAll(config *aws.Config, identifier string) (karma []*infrastructure.Karma, err error) {
-	c, err := moduledynamodb.NewClient(config)
+	c, err := moddynamodb.NewClient(config)
 	if err != nil {
 		return
 	}
-	err = c.GetAllItems("Karma", &moduledynamodb.HashKey{
-		Name:  "Identifier",
+	err = c.GetAllItems("Karma", &moddynamodb.HashKey{
+		Name:  "identifier",
 		Value: identifier,
 	}, &karma)
 	if err != nil {
@@ -23,7 +23,7 @@ func GetAll(config *aws.Config, identifier string) (karma []*infrastructure.Karm
 }
 
 func Put(config *aws.Config, karma *infrastructure.Karma) (err error) {
-	c, err := moduledynamodb.NewClient(config)
+	c, err := moddynamodb.NewClient(config)
 	if err != nil {
 		return
 	}
