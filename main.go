@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/jxpress/gou/infrastructure"
+	"github.com/jxpress/gou/karma"
 	"strings"
 
 	"github.com/nlopes/slack"
@@ -30,7 +33,14 @@ func handleEvent(event *slack.MessageEvent) error {
 		return err
 	}
 	fmt.Println("Get karma", users, count)
-	return nil
+	var putErr error
+	for _, user := range users {
+		putErr = karma.Put(&aws.Config{Region: aws.String("ap-north-east-1")}, &infrastructure.Karma{
+			Identifier: user,
+			Score:      count,
+		})
+	}
+	return putErr
 }
 
 func main() {
