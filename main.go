@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"io/ioutil"
 	"strings"
 
 	"github.com/nlopes/slack"
@@ -35,20 +36,24 @@ func handleEvent(event *slack.MessageEvent) error {
 	return nil
 }
 
-func i() {
+func createKarmaTable() {
 	db, err := sql.Open("sqlite3", "./karma.db")
 	if err != nil {
 		panic(err)
 	}
-	_, err = db.Exec("") // TODO: karmaテーブルのcreate文
-		//`CREATE TABLE IF NOT EXISTS "BOOKS" ("ID" INTEGER PRIMARY KEY, "TITLE" VARCHAR(255))`,
-	//)
+	raw, err := ioutil.ReadFile("./create_table.sql")
+	if err != nil {
+		panic(err)
+	}
+	query := string(raw)
+	_, err = db.Exec(query)
 	if err != nil {
 		panic(err)
 	}
 }
 
 func main() {
+	createKarmaTable()
 	env := NewEnv()
 	api := slack.New(
 		env.SlackApiKey,
@@ -56,7 +61,7 @@ func main() {
 	)
 
 	rtm := api.NewRTM()
-	go rtm.ManageConnection()
+	 go rtm.ManageConnection()
 
 	for msg := range rtm.IncomingEvents {
 		switch ev := msg.Data.(type) {
