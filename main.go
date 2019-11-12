@@ -1,10 +1,12 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
 	"github.com/nlopes/slack"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func parseKarma(text string) (users []string, count int, err error){
@@ -31,6 +33,19 @@ func handleEvent(event *slack.MessageEvent) error {
 	}
 	fmt.Println("Get karma", users, count)
 	return nil
+}
+
+func i() {
+	db, err := sql.Open("sqlite3", "./karma.db")
+	if err != nil {
+		panic(err)
+	}
+	_, err = db.Exec("") // TODO: karmaテーブルのcreate文
+		//`CREATE TABLE IF NOT EXISTS "BOOKS" ("ID" INTEGER PRIMARY KEY, "TITLE" VARCHAR(255))`,
+	//)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func main() {
