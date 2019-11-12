@@ -2,43 +2,54 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"os"
+	"strings"
 
 	"github.com/nlopes/slack"
 )
+
+func parseKarma(text string) (users []string, count int, err error){
+	sp := strings.Split(text, "+")
+	names := sp[0]
+	for _, name := range strings.Split(names, " ") {
+		name = strings.ReplaceAll(name, "@", "")
+		name = strings.TrimSpace(name)
+		users = append(users, name)
+	}
+	count = strings.Count(text, "+")  // 雑
+	return
+
+}
+func handleEvent(event *slack.MessageEvent) error {
+	text := event.Text
+	if ! strings.Contains(text, "++") {
+		return nil
+	}
+
+	users, count, err := parseKarma(text)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Get karma", users, count)
+	return nil
+}
 
 func main() {
 	env := NewEnv()
 	api := slack.New(
 		env.SlackApiKey,
 		slack.OptionDebug(env.Debug),
-		slack.OptionLog(log.New(os.Stdout, "slack-bot: ", log.Lshortfile|log.LstdFlags)),
 	)
 
 	rtm := api.NewRTM()
 	go rtm.ManageConnection()
 
 	for msg := range rtm.IncomingEvents {
-		fmt.Print("Event Received: ")
 		switch ev := msg.Data.(type) {
-		case *slack.HelloEvent:
-			// Ignore hello
-
-		case *slack.ConnectedEvent:
-			fmt.Println("Infos:", ev.Info)
-			fmt.Println("Connection counter:", ev.ConnectionCount)
-			// Replace C2147483705 with your Channel ID
-			rtm.SendMessage(rtm.NewOutgoingMessage("Hello world", "C2147483705"))
-
 		case *slack.MessageEvent:
-			fmt.Printf("Message: %v\n", ev)
-
-		case *slack.PresenceChangeEvent:
-			fmt.Printf("Presence Change: %v\n", ev)
-
-		case *slack.LatencyReport:
-			fmt.Printf("Current latency: %v\n", ev.Value)
+			err := handleEvent(ev)
+			if err != nil {
+				fmt.Printf("Error %v", err.Error())
+			}
 
 		case *slack.RTMError:
 			fmt.Printf("Error: %s\n", ev.Error())
@@ -46,11 +57,7 @@ func main() {
 		case *slack.InvalidAuthEvent:
 			fmt.Printf("Invalid credentials")
 			return
-
 		default:
-
-			// Ignore other events..
-			// fmt.Printf("Unexpected: %v\n", msg.Data)
 		}
 	}
 }

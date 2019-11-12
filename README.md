@@ -1,2 +1,4 @@
 # gou
-業
+業 Bot for slack
+
+
