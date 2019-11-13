@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"io/ioutil"
+	"path"
+	"runtime"
 	"strings"
 
 	"github.com/nlopes/slack"
@@ -36,12 +38,16 @@ func handleEvent(event *slack.MessageEvent) error {
 	return nil
 }
 
-func createKarmaTable() {
-	db, err := sql.Open("sqlite3", "./karma.db")
+func createKarmaTable(dataDir string) {
+	if dataDir == "" {
+		dataDir = "."
+	}
+	db, err := sql.Open("sqlite3", path.Join(dataDir, "karma.db"))
 	if err != nil {
 		panic(err)
 	}
-	raw, err := ioutil.ReadFile("./create_table.sql")
+	_, filename, _, _ := runtime.Caller(1)
+	raw, err := ioutil.ReadFile(path.Join(path.Dir(filename), "create_table.sql"))
 	if err != nil {
 		panic(err)
 	}
@@ -53,8 +59,11 @@ func createKarmaTable() {
 }
 
 func main() {
-	createKarmaTable()
+
 	env := NewEnv()
+
+	createKarmaTable(env.DataDir)
+
 	api := slack.New(
 		env.SlackApiKey,
 		slack.OptionDebug(env.Debug),
