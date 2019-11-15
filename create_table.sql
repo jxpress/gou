@@ -1,9 +1,9 @@
 CREATE TABLE if not exists `karma`
 (
-    `id`       BIGINT   NOT NULL,
-    `date`     DATETIME NOT NULL,
-    `giver`    TEXT DEFAULT '',
-    `receiver` TEXT DEFAULT '',
-    `count`    INT  DEFAULT '1',
-    `channel`  TEXT DEFAULT ''
+    `id`       INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    `date`     DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `giver`    TEXT     DEFAULT '',
+    `receiver` TEXT     DEFAULT '',
+    `count`    FLOAT    DEFAULT 1.0,
+    `channel`  TEXT     DEFAULT ''
 );
