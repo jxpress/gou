@@ -1,24 +1,14 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
-	"io/ioutil"
-	"path"
-	"runtime"
 	"strings"
 
-	"github.com/nlopes/slack"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/nlopes/slack"
 )
-type Karma struct {
-	Giver string
-	Receiver string
-	Count float64
-	Channel string
-}
 
-var IgnoreWords = []string {
+var IgnoreWords = []string{
 	"\n",
 	"`",
 	"　",
@@ -33,12 +23,17 @@ func containIgnoreWords(target string) bool {
 	return false
 }
 
+type KarmaBot struct {
+	repo KarmaRepo
+}
+
+
 // カルマデータ生成処理
-func parseKarma(text string, giver string, channel string) (karmaList []Karma, err error){
-	count := float64(strings.Count(text, "+") - 1)  // 雑
+func parseKarma(text string, giver string, channel string) (karmaList []Karma, err error) {
+	count := float64(strings.Count(text, "+") - 1) // 雑
 	// ++ → 1、 +++ → 1.1、 ++++ → 1.2 ... のように変換する
 	if count > 1 {
-		count = 1.0 + (count - 1)/ 10.0
+		count = 1.0 + (count-1)/10.0
 	}
 
 	// + の前のテキストを抽出する
@@ -61,62 +56,45 @@ func parseKarma(text string, giver string, channel string) (karmaList []Karma, e
 }
 
 // カルマ付与イベント
-func giveKarmaEvent(event *slack.MessageEvent) error {
+func (k *KarmaBot) giveKarmaEvent(slack *slack.Client, event *slack.MessageEvent) error {
 	karmaList, err := parseKarma(event.Text, event.Username, event.Channel)
 	if err != nil {
 		return err
 	}
+	err = k.repo.Save(karmaList)
 	fmt.Println("Get karma", karmaList)
-	return nil
+
+	return err
 }
 
 // Botが Join しているチャンネルに投稿されたもの処理する
-func handleMessageEvent(event *slack.MessageEvent) error {
+func handleMessageEvent(bot *KarmaBot, slack *slack.Client, event *slack.MessageEvent) error {
 	text := event.Text
 	if strings.Contains(text, "++") {
-		return giveKarmaEvent(event)
+		return bot.giveKarmaEvent(slack, event)
 	}
 	return nil
-}
-
-func createKarmaTable(dataDir string) {
-	if dataDir == "" {
-		dataDir = "."
-	}
-	db, err := sql.Open("sqlite3", path.Join(dataDir, "karma.db"))
-	if err != nil {
-		panic(err)
-	}
-	_, filename, _, _ := runtime.Caller(1)
-	raw, err := ioutil.ReadFile(path.Join(path.Dir(filename), "create_table.sql"))
-	if err != nil {
-		panic(err)
-	}
-	query := string(raw)
-	_, err = db.Exec(query)
-	if err != nil {
-		panic(err)
-	}
 }
 
 func main() {
 
 	env := NewEnv()
 
-	createKarmaTable(env.DataDir)
-
+	repo := NewSQLiteKarmaRepo(env.DataDir)
+	bot := &KarmaBot{repo:repo}
 	api := slack.New(
 		env.SlackApiKey,
 		slack.OptionDebug(env.Debug),
 	)
 
+	fmt.Println("Start receiving...")
 	rtm := api.NewRTM()
-	 go rtm.ManageConnection()
+	go rtm.ManageConnection()
 
 	for msg := range rtm.IncomingEvents {
 		switch ev := msg.Data.(type) {
 		case *slack.MessageEvent:
-			err := handleMessageEvent(ev)
+			err := handleMessageEvent(bot, api, ev)
 			if err != nil {
 				fmt.Printf("Error %v", err.Error())
 			}
