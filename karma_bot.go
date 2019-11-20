@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/nlopes/slack"
 	"strings"
+	"time"
 )
 
 var IgnoreWords = []string{
@@ -24,8 +25,20 @@ func containIgnoreWords(target string) bool {
 type KarmaBot struct {
 	repo KarmaRepo
 	slack *slack.Client
+	userId string  // Bot 自身のユーザーID
 }
 
+func NewKarmaBot (repo KarmaRepo, client *slack.Client) (*KarmaBot, error) {
+	bot := &KarmaBot{repo: repo, slack: client}
+
+	// API を叩いてBot自身のIDを取得
+	res, err := client.AuthTest()
+	if err != nil {
+		return nil, err
+	}
+	bot.userId = res.UserID
+	return bot, nil
+}
 
 // カルマデータ生成処理
 func parseKarma(text string, giver string, channel string) (karmaList []Karma, err error) {
@@ -77,11 +90,42 @@ func (k *KarmaBot) giveKarmaEvent(event *slack.MessageEvent) error {
 	return err
 }
 
+// ランキング表示イベント
+func (k *KarmaBot) getKarmaRankingEvent(event *slack.MessageEvent) error {
+	from := time.Now().AddDate(0, 0, -7)
+	to := time.Now()
+	ranking, err := k.repo.Ranking(KindReceiver, from, to)
+	if err != nil {
+		return err
+	}
+	text := slack.MsgOptionText(fmt.Sprintf("%v", ranking), false)
+	ts := slack.MsgOptionTS(event.Timestamp)
+	emoji := slack.MsgOptionIconEmoji(":karma:")
+	_, _, err = k.slack.PostMessage(event.Channel, text, ts, emoji)
+	return err
+}
+
+func (k *KarmaBot) showHelpEvent(event *slack.MessageEvent) error {
+	text := slack.MsgOptionText(`ランキングを見たい場合はメンションのあとに「ランキング」とつけてください。1週間分のランキングがみれます`, false)
+	ts := slack.MsgOptionTS(event.Timestamp)
+	emoji := slack.MsgOptionIconEmoji(":karma:")
+	_, _, err := k.slack.PostMessage(event.Channel, text, ts, emoji)
+	return err
+}
+
 // Botが Join しているチャンネルに投稿されたもの処理する
 func handleMessageEvent(bot *KarmaBot, event *slack.MessageEvent) error {
 	text := event.Text
 	if strings.Contains(text, "++") {
 		return bot.giveKarmaEvent(event)
+	}
+
+	// Bot に対するリプライ
+	if strings.Contains(text, bot.userId) {
+		if strings.Contains(text, "ランキング") {
+			return bot.getKarmaRankingEvent(event)
+		}
+		return bot.showHelpEvent(event)
 	}
 	return nil
 }

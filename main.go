@@ -16,7 +16,11 @@ func main() {
 		env.SlackApiKey,
 		slack.OptionDebug(env.Debug),
 	)
-	bot := &KarmaBot{repo: repo, slack: client}
+	bot,err := NewKarmaBot(repo, client)
+
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Println("Start receiving...")
 	rtm := client.NewRTM()
