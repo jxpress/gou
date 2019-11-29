@@ -73,7 +73,7 @@ func parseKarma(text string, giver string, channel string) (karmaList []Karma, e
 // カルマ付与イベント
 func (k *KarmaBot) giveKarmaEvent(event *slack.MessageEvent) error {
 
-	karmaList, err := parseKarma(event.Text, event.Username, event.Channel)
+	karmaList, err := parseKarma(event.Text, event.User, event.Channel)
 	if err != nil {
 		return err
 	}
@@ -98,7 +98,11 @@ func (k *KarmaBot) getKarmaRankingEvent(event *slack.MessageEvent) error {
 	if err != nil {
 		return err
 	}
-	text := slack.MsgOptionText(fmt.Sprintf("%v", ranking), false)
+	msg := ""
+	for i, r := range ranking.Ranks {
+		msg += fmt.Sprintf("%d. <@%s> (%.2fpt)\n", i + 1, r.User, r.Count)
+	}
+	text := slack.MsgOptionText(msg, false)
 	ts := slack.MsgOptionTS(event.Timestamp)
 	emoji := slack.MsgOptionIconEmoji(":karma:")
 	_, _, err = k.slack.PostMessage(event.Channel, text, ts, emoji)
