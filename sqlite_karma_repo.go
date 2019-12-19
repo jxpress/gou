@@ -24,8 +24,34 @@ const RankingQuery = `
 		ORDER BY sum(count) desc
 `
 
-type SQLiteKarmaRepo struct {
+const UserPutQuery = `
+	INSERT OR REPLACE INTO user VALUES (?, ?, ?, ?)
+`
+
+type SQLiteUserKarmaRepo struct {
 	db *sql.DB
+}
+
+func (s *SQLiteUserKarmaRepo) Put(user User) error {
+	stmt, err := s.db.Prepare(UserPutQuery)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(user.Id, user.Name, user.DisplayName, user.TeamId)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *SQLiteUserKarmaRepo) GetById(id string) (User, error) {
+	panic("implement me")
+}
+
+func (s *SQLiteUserKarmaRepo) GetByName(name string) (User, error) {
+	panic("implement me")
 }
 
 func getKarmaDb (dataDir string) (*sql.DB, error) {
@@ -49,16 +75,16 @@ func getKarmaDb (dataDir string) (*sql.DB, error) {
 	return db, nil
 }
 
-func NewSQLiteKarmaRepo(dataDir string) KarmaRepo {
+func NewSQLiteUserKarmaRepo(dataDir string) UserKarmaRepo {
 	db, err := getKarmaDb(dataDir)
 	if err != nil {
 		panic(nil)
 	}
-	repo := &SQLiteKarmaRepo{db}
+	repo := &SQLiteUserKarmaRepo{db}
 	return repo
 }
 
-func (s *SQLiteKarmaRepo) Save(karmaList []Karma) error {
+func (s *SQLiteUserKarmaRepo) Save(karmaList []Karma) error {
 	stmt, err := s.db.Prepare(InsertQuery)
 	if err != nil {
 		return err
@@ -74,7 +100,7 @@ func (s *SQLiteKarmaRepo) Save(karmaList []Karma) error {
 	return nil
 }
 
-func (s *SQLiteKarmaRepo) Ranking(kind KarmaAggregateKind, from time.Time, to time.Time) (KarmaRanking, error) {
+func (s *SQLiteUserKarmaRepo) Ranking(kind KarmaAggregateKind, from time.Time, to time.Time) (KarmaRanking, error) {
 	ranking := KarmaRanking{ Kind: kind}
 	ranking.Ranks = make([]KarmaAggregate, 0)
 	query := strings.ReplaceAll(RankingQuery, "{kind}", string(kind))

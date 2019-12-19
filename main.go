@@ -6,24 +6,51 @@ import (
 	"github.com/nlopes/slack"
 )
 
+func initUser(repo UserRepo, client *slack.Client) error {
+	us, err := client.GetUsers()
+	if err != nil {
+		return err
+	}
+	for _, u := range us {
+		if u.IsBot {
+			continue
+		}
+		if u.Deleted {
+			continue
+		}
+		err := repo.Put(User{
+			Id:          u.ID,
+			Name:        u.Name,
+			DisplayName: u.RealName,
+			TeamId:      u.TeamID,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func main() {
 
 	env := NewEnv()
 
-	repo := NewSQLiteKarmaRepo(env.DataDir)
+	repo := NewSQLiteUserKarmaRepo(env.DataDir)
 
 	client := slack.New(
 		env.SlackApiKey,
 		slack.OptionDebug(env.Debug),
 	)
-	bot,err := NewKarmaBot(repo, client)
 
+	bot,err := NewKarmaBot(repo, client)
 	if err != nil {
 		panic(err)
 	}
 
 	fmt.Println("Start receiving...")
 	rtm := client.NewRTM()
+
+	go initUser(repo, client)
 
 	go rtm.ManageConnection()
 	for msg := range rtm.IncomingEvents {
