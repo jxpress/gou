@@ -13,5 +13,6 @@ CREATE TABLE if not exists `user`
     `id` TEXT NOT NULL PRIMARY KEY,
     `name` TEXT,
     `display_name` TEXT,
-    `team_id` TEXT
+    `team_id` TEXT,
+    `image_url` TEXT
 );

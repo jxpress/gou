@@ -18,6 +18,7 @@ type User struct {
 	Name        string
 	DisplayName string
 	TeamId      string
+	ImageURL    string
 }
 type KarmaAggregateKind string
 

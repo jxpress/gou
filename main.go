@@ -18,11 +18,13 @@ func initUser(repo UserRepo, client *slack.Client) error {
 		if u.Deleted {
 			continue
 		}
+
 		err := repo.Put(User{
 			Id:          u.ID,
 			Name:        u.Name,
 			DisplayName: u.RealName,
 			TeamId:      u.TeamID,
+			ImageURL:    u.Profile.Image192,
 		})
 		if err != nil {
 			return err
@@ -42,7 +44,7 @@ func main() {
 		slack.OptionDebug(env.Debug),
 	)
 
-	bot,err := NewKarmaBot(repo, client)
+	bot, err := NewKarmaBot(repo, client)
 	if err != nil {
 		panic(err)
 	}

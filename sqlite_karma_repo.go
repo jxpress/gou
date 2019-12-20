@@ -25,34 +25,16 @@ const RankingQuery = `
 `
 
 const UserPutQuery = `
-	INSERT OR REPLACE INTO user VALUES (?, ?, ?, ?)
+	INSERT OR REPLACE INTO user VALUES (?, ?, ?, ?, ?)
 `
+
+const UserFindByIdQuery = `SELECT id, name, display_name, team_id, image_url FROM user where id = ?`
+const UserFindByNameQuery = `SELECT id, name, display_name, team_id, image_url FROM user where name = ?`
 
 type SQLiteUserKarmaRepo struct {
 	db *sql.DB
 }
 
-func (s *SQLiteUserKarmaRepo) Put(user User) error {
-	stmt, err := s.db.Prepare(UserPutQuery)
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-
-	_, err = stmt.Exec(user.Id, user.Name, user.DisplayName, user.TeamId)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *SQLiteUserKarmaRepo) GetById(id string) (User, error) {
-	panic("implement me")
-}
-
-func (s *SQLiteUserKarmaRepo) GetByName(name string) (User, error) {
-	panic("implement me")
-}
 
 func getKarmaDb (dataDir string) (*sql.DB, error) {
 	if dataDir == "" {
@@ -84,6 +66,9 @@ func NewSQLiteUserKarmaRepo(dataDir string) UserKarmaRepo {
 	return repo
 }
 
+/*
+Implements KarmaRepo
+*/
 func (s *SQLiteUserKarmaRepo) Save(karmaList []Karma) error {
 	stmt, err := s.db.Prepare(InsertQuery)
 	if err != nil {
@@ -129,4 +114,50 @@ func (s *SQLiteUserKarmaRepo) Ranking(kind KarmaAggregateKind, from time.Time, t
 		ranking.Ranks = append(ranking.Ranks, agg)
 	}
 	return ranking, nil
+}
+
+/*
+Implements UserRepo
+ */
+func (s *SQLiteUserKarmaRepo) Put(user User) error {
+	stmt, err := s.db.Prepare(UserPutQuery)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(user.Id, user.Name, user.DisplayName, user.TeamId, user.ImageURL)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *SQLiteUserKarmaRepo) GetById(id string) (user User, err error) {
+	stmt, err := s.db.Prepare(UserFindByIdQuery)
+	if err != nil {
+		return
+	}
+	defer stmt.Close()
+
+	row := stmt.QueryRow(id)
+	err = row.Scan(&user.Id, &user.Name, &user.DisplayName, &user.TeamId, &user.ImageURL)
+	if err != nil {
+		return
+	}
+	return user, nil
+}
+
+func (s *SQLiteUserKarmaRepo) GetByName(name string) (user User, err error) {
+	if err != nil {
+		return
+	}
+	defer stmt.Close()
+
+	row := stmt.QueryRow(id)
+	err = row.Scan(&user.Id, &user.Name, &user.DisplayName, &user.TeamId, &user.ImageURL)
+	if err != nil {
+		return
+	}
+	return user, nil
 }
