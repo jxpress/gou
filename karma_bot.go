@@ -23,14 +23,13 @@ func containIgnoreWords(target string) bool {
 }
 
 type KarmaBot struct {
-	repo KarmaRepo
-	slack *slack.Client
-	userId string  // Bot 自身のユーザーID
+	userKarmaRepo UserKarmaRepo
+	slack         *slack.Client
+	userId        string  // Bot 自身のユーザーID
 }
 
-func NewKarmaBot (repo KarmaRepo, client *slack.Client) (*KarmaBot, error) {
-	bot := &KarmaBot{repo: repo, slack: client}
-
+func NewKarmaBot (repo UserKarmaRepo, client *slack.Client) (*KarmaBot, error) {
+	bot := &KarmaBot{userKarmaRepo: repo, slack: client}
 	// API を叩いてBot自身のIDを取得
 	res, err := client.AuthTest()
 	if err != nil {
@@ -40,8 +39,17 @@ func NewKarmaBot (repo KarmaRepo, client *slack.Client) (*KarmaBot, error) {
 	return bot, nil
 }
 
+func (k *KarmaBot) parseUser(nameOrId string) User {
+	user, err := k.userKarmaRepo.GetById(nameOrId)
+	if err == nil {
+		return user
+	}
+	user, _ = k.userKarmaRepo.GetByName(nameOrId)
+	return user
+}
+
 // カルマデータ生成処理
-func parseKarma(text string, giver string, channel string) (karmaList []Karma, err error) {
+func (k *KarmaBot) parseKarma(text string, giver string, channel string) (karmaList []Karma, err error) {
 	count := float64(strings.Count(text, "+") - 1) // 雑
 	// ++ → 1、 +++ → 1.1、 ++++ → 1.2 ... のように変換する
 	if count > 1 {
@@ -60,9 +68,11 @@ func parseKarma(text string, giver string, channel string) (karmaList []Karma, e
 		}
 		name = strings.ReplaceAll(name, "@", "")
 		name = strings.TrimSpace(name)
+		println(name)
+		user := k.parseUser(name)
 		karmaList = append(karmaList, Karma{
 			Giver:    giver,
-			Receiver: name,
+			Receiver: user.Name,
 			Count:    count,
 			Channel:  channel,
 		})
@@ -73,12 +83,12 @@ func parseKarma(text string, giver string, channel string) (karmaList []Karma, e
 // カルマ付与イベント
 func (k *KarmaBot) giveKarmaEvent(event *slack.MessageEvent) error {
 
-	karmaList, err := parseKarma(event.Text, event.User, event.Channel)
+	karmaList, err := k.parseKarma(event.Text, event.User, event.Channel)
 	if err != nil {
 		return err
 	}
 
-	err = k.repo.Save(karmaList)
+	err = k.userKarmaRepo.Save(karmaList)
 	if err != nil {
 		return err
 	}
@@ -94,7 +104,7 @@ func (k *KarmaBot) giveKarmaEvent(event *slack.MessageEvent) error {
 func (k *KarmaBot) getKarmaRankingEvent(event *slack.MessageEvent) error {
 	from := time.Now().AddDate(0, 0, -7)
 	to := time.Now()
-	ranking, err := k.repo.Ranking(KindReceiver, from, to)
+	ranking, err := k.userKarmaRepo.Ranking(KindReceiver, from, to)
 	if err != nil {
 		return err
 	}
@@ -127,15 +137,25 @@ func handleMessageEvent(bot *KarmaBot, event *slack.MessageEvent) error {
 	// Bot に対するリプライ
 	if strings.Contains(text, bot.userId) {
 		if strings.Contains(text, "ランキング") {
-			return bot.getKarmaRankingEvent(event)
-		}
+ç		}
 		return bot.showHelpEvent(event)
 	}
 	return nil
 }
 
+// スタンプに対する処理をする
+func handleReactionEvent(bot *KarmaBot, event *slack.ReactionAddedEvent) error {
+	println(event.User)
+	return nil
+}
+
 func eventReceiver(bot *KarmaBot, msg slack.RTMEvent) error {
 	switch ev := msg.Data.(type) {
+	case *slack.ReactionAddedEvent:
+		err := handleReactionEvent(bot, ev)
+		if err != nil {
+			return err
+		}
 	case *slack.MessageEvent:
 		err := handleMessageEvent(bot, ev)
 		if err != nil {

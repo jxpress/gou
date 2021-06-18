@@ -37,7 +37,7 @@ func main() {
 
 	env := NewEnv()
 
-	repo := NewSQLiteUserKarmaRepo(env.DataDir)
+	repo := NewSQLiteKarmaRepo(env.DataDir)
 
 	client := slack.New(
 		env.SlackApiKey,
