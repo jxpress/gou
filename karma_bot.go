@@ -7,6 +7,11 @@ import (
 	"time"
 )
 
+var ValidEmojis = []string{
+	"+1",
+	"god",
+	"sbrr",
+}
 var IgnoreWords = []string{
 	"\n",
 	"`",
@@ -67,12 +72,13 @@ func (k *KarmaBot) parseKarma(text string, giver string, channel string) (karmaL
 			continue
 		}
 		name = strings.ReplaceAll(name, "@", "")
+		name = strings.ReplaceAll(name, "<", "")
+		name = strings.ReplaceAll(name, ">", "")
 		name = strings.TrimSpace(name)
-		println(name)
 		user := k.parseUser(name)
 		karmaList = append(karmaList, Karma{
 			Giver:    giver,
-			Receiver: user.Name,
+			Receiver: user.Id,
 			Count:    count,
 			Channel:  channel,
 		})
@@ -137,7 +143,8 @@ func handleMessageEvent(bot *KarmaBot, event *slack.MessageEvent) error {
 	// Bot に対するリプライ
 	if strings.Contains(text, bot.userId) {
 		if strings.Contains(text, "ランキング") {
-ç		}
+			return bot.getKarmaRankingEvent(event)
+		}
 		return bot.showHelpEvent(event)
 	}
 	return nil
@@ -145,8 +152,28 @@ func handleMessageEvent(bot *KarmaBot, event *slack.MessageEvent) error {
 
 // スタンプに対する処理をする
 func handleReactionEvent(bot *KarmaBot, event *slack.ReactionAddedEvent) error {
-	println(event.User)
-	return nil
+	var ok bool
+	for _, w := range ValidEmojis {
+		if strings.HasPrefix(event.Reaction, w) {
+			ok = true
+		}
+	}
+	if !ok {
+		return nil
+	}
+	karma := Karma{
+		Giver:    event.User,
+		Receiver: event.ItemUser,
+		Count:    0.1,
+		Channel:  event.Item.Channel,
+	}
+	if err := bot.userKarmaRepo.Save([]Karma{karma}); err != nil {
+		return err
+	}
+	// リアクションをつける
+	ref := slack.ItemRef{Timestamp: event.Item.Timestamp, Channel: event.Item.Channel}
+	err := bot.slack.AddReaction("eyes", ref)
+	return err
 }
 
 func eventReceiver(bot *KarmaBot, msg slack.RTMEvent) error {

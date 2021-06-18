@@ -80,6 +80,12 @@ func (s *SQLiteKarmaRepo) Save(karmaList []Karma) error {
 	defer stmt.Close()
 
 	for _, k := range karmaList {
+		if k.Giver == "" {
+			continue
+		}
+		if k.Receiver == "" {
+			continue
+		}
 		_, err := stmt.Exec(k.Giver, k.Receiver, k.Count, k.Channel)
 		if err != nil {
 			return err
